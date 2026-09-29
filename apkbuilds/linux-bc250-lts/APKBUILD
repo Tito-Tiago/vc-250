@@ -1,0 +1,69 @@
+# Maintainer: bc250-llm-alpine
+pkgname=linux-bc250-lts
+pkgver=6.18.53
+pkgrel=0
+pkgdesc="Linux LTS kernel for AMD BC-250 with 40-CU unlock and lean config"
+url="https://kernel.org/"
+arch="x86_64"
+license="GPL-2.0-only"
+options="!check !strip !tracedeps !spdx !dbg !lto"
+makedepends="
+	bash bc bison diffutils findutils flex gcc make openssl-dev patch perl
+	elfutils-dev zstd-dev xz
+	"
+depends="linux-firmware-amdgpu mkinitfs"
+provides="linux-lts=$pkgver-$pkgrel"
+subpackages="$pkgname-dev:_dev"
+
+# 40-CU unlock patch — vendored de duggasco/bc250-40cu-unlock
+# (repo arquivado 2026-09-17, não depender de fetch remoto)
+source="
+	https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-$pkgver.tar.xz
+	patches/bc250-40cu-amdgpu.patch
+	config-bc250
+	"
+builddir="$srcdir/linux-$pkgver"
+
+prepare() {
+	default_prepare
+
+	# Aplica patch 40-CU
+	cd "$builddir"
+	if [ -f "$srcdir/patches/bc250-40cu-amdgpu.patch" ]; then
+		msg "Applying BC-250 40-CU unlock patch"
+		patch -p5 < "$srcdir/patches/bc250-40cu-amdgpu.patch"
+	fi
+
+	# Gera config base e aplica fragmento BC-250
+	make defconfig
+	scripts/kconfig/merge_config.sh .config "$srcdir/config-bc250"
+	make olddefconfig
+}
+
+build() {
+	make LOCALVERSION="-bc250" kernelrelease
+	make LOCALVERSION="-bc250" bzImage modules
+}
+
+package() {
+	install -Dm644 arch/x86/boot/bzImage \
+		"$pkgdir/boot/vmlinuz-bc250-lts"
+	install -Dm644 System.map \
+		"$pkgdir/boot/System.map-bc250-lts"
+	install -Dm644 .config \
+		"$pkgdir/boot/config-bc250-lts"
+
+	make INSTALL_MOD_PATH="$pkgdir" modules_install
+
+	# Symlinks para compatibilidade com mkinitfs/update-extlinux
+	ln -sf vmlinuz-bc250-lts "$pkgdir/boot/vmlinuz-lts"
+	ln -sf System.map-bc250-lts "$pkgdir/boot/System.map-lts"
+	ln -sf config-bc250-lts "$pkgdir/boot/config-lts"
+}
+
+_dev() {
+	pkgdesc="Kernel headers for $pkgname"
+	depends="bash perl gcc make"
+	mkdir -p "$subpkgdir/lib/modules/$pkgver-bc250-lts"
+	cp -a "$builddir" "$subpkgdir/lib/modules/$pkgver-bc250-lts/build"
+}

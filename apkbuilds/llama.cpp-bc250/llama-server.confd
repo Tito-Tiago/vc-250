@@ -1,0 +1,23 @@
+# llama-server configuration for AMD BC-250
+# Editar conforme o modelo e uso
+
+# Argumentos do llama-server
+# Ver perfis em /etc/llama-server/profiles/
+LLAMA_ARGS="--host 0.0.0.0 --port 8080 \
+  --model /data/models/model.gguf \
+  -ngl 99 \
+  -fa \
+  --ctx-size 8192 \
+  --kv-cache-type q8_0"
+
+# Variáveis de ambiente do Vulkan
+GGML_VK_FORCE_MAX_ALLOCATION_SIZE=2000000000
+
+# Para artefatos visuais, descomentar:
+# RADV_DEBUG=nohiz
+
+# Usuário do serviço (deve estar no grupo render)
+# LLAMA_USER="llama:llama"
+
+# Modelo alternativo (para testes)
+# LLAMA_ARGS_MODEL="/data/models/qwen3.5-9b-q4_k_m.gguf"

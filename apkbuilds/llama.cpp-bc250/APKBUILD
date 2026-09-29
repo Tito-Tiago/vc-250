@@ -1,0 +1,61 @@
+# Maintainer: bc250-llm-alpine
+pkgname=llama.cpp-bc250
+pkgver=b9265
+pkgrel=0
+pkgdesc="LLM inference with Vulkan+RPC for AMD BC-250 (gfx1013)"
+url="https://github.com/ggerganov/llama.cpp"
+arch="x86_64"
+license="MIT"
+depends="vulkan-loader mesa-vulkan-ati libdrm"
+makedepends="
+	cmake ninja pkgconf gcc g++ git
+	vulkan-loader-dev glslang-dev spirv-headers shaderc
+	curl-dev zlib-dev zstd-dev openssl-dev
+	"
+options="!check !strip !spdx !dbg"
+# Fonte padrão: upstream (mantido)
+# Alternativa: fork TechMakesArt/llama.cpp-bc250 @ b8819 (kernels Vulkan ajustados, ~55 tok/s vs 37)
+# Para usar o fork: trocar source e builddir
+_commit="b9265"
+source="
+	https://github.com/ggerganov/llama.cpp/archive/refs/tags/${_commit}.tar.gz
+	llama-server.initd
+	llama-server.confd
+	"
+builddir="$srcdir/llama.cpp-${_commit}"
+
+prepare() {
+	default_prepare
+}
+
+build() {
+	cmake -B build -G Ninja \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DGGML_VULKAN=ON \
+		-DGGML_RPC=ON \
+		-DLLAMA_CURL=ON \
+		-DLLAMA_BUILD_TESTS=OFF \
+		-DLLAMA_BUILD_EXAMPLES=ON \
+		-DLLAMA_BUILD_SERVER=ON
+	cmake --build build --parallel "$(nproc)"
+}
+
+package() {
+	cd build/bin
+
+	# Binários principais
+	for bin in llama-server llama-cli llama-bench llama-quantize llama-baby-llama \
+		rpc-server llama-gguf llama-gguf-split llama-lookahead llama-minicpmv-cli \
+		llama-mtmd-cli llama-tts; do
+		[ -f "$bin" ] && install -Dm755 "$bin" "$pkgdir/usr/bin/$bin"
+	done
+
+	# OpenRC service para llama-server
+	install -Dm755 "$srcdir/llama-server.initd" \
+		"$pkgdir/etc/init.d/llama-server"
+	install -Dm644 "$srcdir/llama-server.confd" \
+		"$pkgdir/etc/conf.d/llama-server"
+
+	# Diretório de configuração
+	install -d "$pkgdir/etc/llama-server"
+}

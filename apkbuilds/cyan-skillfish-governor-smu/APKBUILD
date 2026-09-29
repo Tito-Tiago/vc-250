@@ -1,0 +1,54 @@
+# Maintainer: bc250-llm-alpine
+pkgname=cyan-skillfish-governor-smu
+pkgver=1.0.0
+pkgrel=0
+pkgdesc="GPU governor for AMD Cyan Skillfish APU (BC-250) — SMU-based, no kernel patch"
+url="https://github.com/filippor/cyan-skillfish-governor"
+arch="x86_64"
+license="MIT"
+depends="dbus"
+makedepends="cargo rust libdrm-dev dbus-libs"
+options="!check !strip !spdx !dbg"
+# Branch: smu (o TT precisa de patch de kernel; o SMU não)
+_commit="HEAD"
+source="
+	$pkgname-$pkgver.tar.gz::https://github.com/filippor/cyan-skillfish-governor/archive/refs/heads/smu.tar.gz
+	com.cyan.skillfishgovernor.conf
+	$pkgname.initd
+	"
+builddir="$srcdir/cyan-skillfish-governor-smu"
+
+prepare() {
+	default_prepare
+
+	# Configurações padrão do governor
+	mkdir -p "$builddir/config"
+	if [ -f "$builddir/default-config.toml" ]; then
+		cp "$builddir/default-config.toml" "$builddir/config/config.toml"
+	fi
+}
+
+build() {
+	cd "$builddir"
+	cargo build --release --locked 2>/dev/null || cargo build --release
+}
+
+package() {
+	cd "$builddir"
+
+	# Binário
+	install -Dm755 target/release/cyan-skillfish-governor-smu \
+		"$pkgdir/usr/bin/cyan-skillfish-governor-smu"
+
+	# Configuração (curva conservadora para BC-250)
+	install -Dm644 config/config.toml \
+		"$pkgdir/etc/cyan-skillfish-governor-smu/config.toml"
+
+	# D-Bus policy
+	install -Dm644 "$srcdir/com.cyan.skillfishgovernor.conf" \
+		"$pkgdir/etc/dbus-1/system.d/com.cyan.skillfishgovernor.conf"
+
+	# OpenRC service
+	install -Dm755 "$srcdir/$pkgname.initd" \
+		"$pkgdir/etc/init.d/cyan-skillfish-governor-smu"
+}

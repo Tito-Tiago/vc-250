@@ -1,0 +1,55 @@
+#!/sbin/openrc-run
+
+name="llama-server"
+description="LLM inference server (llama.cpp) for AMD BC-250"
+
+command="/usr/bin/llama-server"
+command_args="${LLAMA_ARGS:---host 0.0.0.0 --port 8080 --model /data/models/model.gguf -ngl 99 -fa --ctx-size 8192 --kv-cache-type q8_0}"
+command_user="llama:llama"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/llama-server.log"
+error_log="/var/log/llama-server.log"
+
+# GPU: localizar por PCI ID 0x13fe (índice cardN muda entre boots)
+# Grupo render é obrigatório — sem isso Vulkan cai para CPU silenciosamente
+
+export GGML_VK_FORCE_MAX_ALLOCATION_SIZE=2000000000
+
+depend() {
+	need localmount
+	after modules cyan-skillfish-governor-smu
+	before firewall
+	use logger
+}
+
+start_pre() {
+	checkpath -d -m 0755 /var/log
+	checkpath -d -m 0755 /run
+
+	# Verifica GPU BC-250 presente
+	if ! lspci -d 0x13fe: >/dev/null 2>&1; then
+		eerror "BC-250 GPU (PCI 0x13fe) não encontrada"
+		return 1
+	fi
+
+	# Verifica que o usuário tem acesso à GPU render
+	if [ "$(id -u)" = "0" ]; then
+		if ! su -s /bin/sh -c "test -r /dev/dri/renderD128" "${command_user%%:*}" 2>/dev/null; then
+			eerror "Usuário ${command_user%%:*} sem acesso a /dev/dri/renderD128"
+			eerror "Adicionar ao grupo render: adduser ${command_user%%:*} render"
+			return 1
+		fi
+	fi
+
+	# Verifica modelo existe
+	_model=$(echo "$command_args" | grep -oP '(?<=--model )\S+')
+	if [ -n "$_model" ] && [ ! -f "$_model" ]; then
+		eerror "Modelo não encontrado: $_model"
+		return 1
+	fi
+}
+
+stop_post() {
+	rm -f "$pidfile"
+}

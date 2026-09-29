@@ -1,0 +1,41 @@
+# BC-250 Governor SMU — curva conservadora para operação sustentada
+# Fonte: config validada em duggasco/bc250-40cu-unlock + docs BC-250
+# Manter curva monotônica (frequência maior = tensão maior ou igual)
+# Tensão mínima: 700mV (abaixo disso trava em 1500MHz)
+
+# Teto de 2200MHz com 1000mV — limite prático estável em cooler stock
+# Para 40CU + carga sustentada, considerar limitar a 1500MHz/900mV
+
+[[safe-points]]
+frequency = 350
+voltage = 700
+
+[[safe-points]]
+frequency = 800
+voltage = 750
+
+[[safe-points]]
+frequency = 1200
+voltage = 800
+
+[[safe-points]]
+frequency = 1500
+voltage = 900
+
+[[safe-points]]
+frequency = 1800
+voltage = 950
+
+[[safe-points]]
+frequency = 2000
+voltage = 1000
+
+[[safe-points]]
+frequency = 2200
+voltage = 1000
+
+# Nota: para modo "sustentado 40CU" (Fase 5), trocar o último ponto para:
+# [[safe-points]]
+# frequency = 1500
+# voltage = 900
+# e remover os pontos acima de 1500MHz

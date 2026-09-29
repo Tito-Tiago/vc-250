@@ -1,0 +1,29 @@
+#!/sbin/openrc-run
+
+name="bc250-thermal-watchdog"
+description="Thermal watchdog for BC-250 — reduce clock if temperature exceeds threshold"
+
+command="/usr/share/bc250/watchdog-thermal.sh"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/bc250-thermal-watchdog.log"
+error_log="/var/log/bc250-thermal-watchdog.log"
+
+# Limiares (°C)
+# GPU edge: 95°C (sustentado ok), 100°C (throttle)
+# CPU: 95°C (TJmax = 100°C)
+TEMP_GPU_WARN="${TEMP_GPU_WARN:-90}"
+TEMP_GPU_CRIT="${TEMP_GPU_CRIT:-95}"
+TEMP_CPU_WARN="${TEMP_CPU_WARN:-90}"
+TEMP_CPU_CRIT="${TEMP_CPU_CRIT:-95}"
+
+depend() {
+	need localmount
+	after modules cyan-skillfish-governor-smu
+	before llama-server
+}
+
+start_pre() {
+	checkpath -d -m 0755 /var/log
+	checkpath -d -m 0755 /run
+}

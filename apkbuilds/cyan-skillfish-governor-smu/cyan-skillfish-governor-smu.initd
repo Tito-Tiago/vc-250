@@ -1,0 +1,26 @@
+#!/sbin/openrc-run
+
+name="cyan-skillfish-governor-smu"
+description="GPU governor for AMD Cyan Skillfish APU (BC-250)"
+
+command="/usr/bin/cyan-skillfish-governor-smu"
+command_args="/etc/cyan-skillfish-governor-smu/config.toml"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/cyan-skillfish-governor-smu.log"
+error_log="/var/log/cyan-skillfish-governor-smu.log"
+
+depend() {
+	need dbus
+	after modules
+	before llama-server
+}
+
+start_pre() {
+	checkpath -f "$pidfile"
+	checkpath -d -m 0755 /var/log
+}
+
+stop_post() {
+	rm -f "$pidfile"
+}
